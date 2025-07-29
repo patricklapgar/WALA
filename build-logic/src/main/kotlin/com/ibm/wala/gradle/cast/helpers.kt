@@ -9,7 +9,6 @@ import org.gradle.api.tasks.TaskInstantiationException
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.internal.jvm.Jvm
 import org.gradle.kotlin.dsl.closureOf
-import org.gradle.kotlin.dsl.extra
 import org.gradle.language.cpp.CppBinary
 import org.gradle.nativeplatform.OperatingSystemFamily
 import org.gradle.nativeplatform.tasks.AbstractLinkTask
@@ -28,6 +27,9 @@ import org.gradle.nativeplatform.tasks.LinkSharedLibrary
  * Unfortunately, many of the APIs for native compilation provide access only to [Provider]<[Task]>
  * instances, which have no configuration-avoiding `configure` method. Instead, the best we can do
  * is to [get][Provider.get] the provided [Task], then configure it using [Task.configure].
+ *
+ * See also
+ * [an existing request to improve these APIs](https://github.com/gradle/gradle-native/issues/683).
  *
  * @param action The configuration action to be applied to the task.
  */
@@ -79,11 +81,13 @@ fun AbstractLinkTask.addJvmLibrary(binary: CppBinary) {
       })
 }
 
-fun AbstractLinkTask.addRpath(library: File) {
-  if (!(project.rootProject.extra["isWindows"] as Boolean)) {
-    linkerArgs.add("-Wl,-rpath,${library.parent}")
+fun AbstractLinkTask.addRpath(library: Provider<File>) {
+  if (!targetPlatform.get().operatingSystem.isWindows) {
+    linkerArgs.add(project.provider { "-Wl,-rpath,${library.get().parent}" })
   }
 }
+
+fun AbstractLinkTask.addRpath(library: File) = addRpath(project.provider { library })
 
 val AbstractLinkTask.nativeLibraryOutput: File
   get() =
